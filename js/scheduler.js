@@ -9,7 +9,7 @@
  *  - 每日預設 2 人出勤（perDay 可調）。
  *  - 一週（週一～週日）上班盡量不超過 4 天（上四休三，軟性限制）。
  *  - 員工事先選定的「休」與「特休」必須尊重。
- *  - 特休 / 病假 / 事假 不計入上四休三：既不算上班，也不算一般休假。
+ *  - 特休不計入上四休三：既不算上班，也不算一般休假。
  *  - 扣除特休後，各員工的「休」天數盡量相同；無法平衡的差額以「結餘」帶到下個月補償。
  */
 (function (root, factory) {
@@ -21,7 +21,7 @@
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
 
-  var CODE = { WORK: 'W', REST: 'R', SPECIAL: 'S', SICK: 'B', PERSONAL: 'P', EMPTY: '' };
+  var CODE = { WORK: 'W', REST: 'R', SPECIAL: 'S', EMPTY: '' };
   var MAX_STREAK = 4;          // 連續上班上限
   var WEEK_MAX = 4;            // 一週上班上限（軟性）
   var FIXED_OFF_WEEKDAY = 3;   // 週三（0 = 週日）
@@ -461,7 +461,7 @@
     var stats = {};
     for (var i = 0; i < roster.length; i++) {
       var e = roster[i];
-      var s = { W: 0, R: 0, S: 0, B: 0, P: 0, empty: 0 };
+      var s = { W: 0, R: 0, S: 0, empty: 0 };
       for (var d = 1; d <= D; d++) {
         var c = getCell(cells, e, d);
         if (c === CODE.EMPTY) s.empty++; else s[c] = (s[c] || 0) + 1;

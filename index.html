@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="application-name" content="JIUWU_animal_hospital_schedule">
   <meta name="theme-color" content="#4FAEE3">
-  <title>JIUWU 動物醫院排班表</title>
+  <title>JIUWU animal hospital schedule</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap">
@@ -20,7 +20,7 @@
           <svg viewBox="0 0 32 32" fill="#fff"><circle cx="11" cy="11" r="3"/><circle cx="21" cy="11" r="3"/><circle cx="7" cy="17" r="2.6"/><circle cx="25" cy="17" r="2.6"/><path d="M16 15c4 0 7 4 7 7.5 0 2.5-2 3.5-4 3-1.5-.4-2-1-3-1s-1.5.6-3 1c-2 .5-4-.5-4-3C9 19 12 15 16 15z"/></svg>
         </div>
         <div>
-          <h1>JIUWU 動物醫院 自動排班表</h1>
+          <h1>久吾動物醫院 自動排班表</h1>
           <p class="brand-sub">JIUWU_animal_hospital_schedule</p>
         </div>
       </div>
@@ -31,6 +31,7 @@
         <label for="per-day">每日出勤
           <input id="per-day" type="number" min="1" max="20" step="1" value="2" inputmode="numeric"> 人
         </label>
+        <span class="sync" id="sync-status" title="資料儲存狀態"></span>
       </div>
     </div>
   </header>
@@ -63,7 +64,7 @@
       </div>
 
       <div class="grid-wrap" id="grid-wrap">
-        <table class="grid" id="grid" aria-label="排班表"></table>
+        <table class="grid" id="grid" aria-label="排班表"><tbody><tr class="empty-row"><td>載入中…</td></tr></tbody></table>
       </div>
 
       <div class="legend" id="legend"></div>
@@ -72,8 +73,8 @@
 
     <section class="card data-tools" aria-labelledby="data-title">
       <div>
-        <h2 id="data-title" class="visually-hidden" style="font-size:15px;color:var(--sky-ink);margin-bottom:4px">資料備份</h2>
-        <p>所有員工與排班資料都保存在這台裝置的瀏覽器裡。若要換裝置或同時在電腦與手機使用，請先備份再還原。</p>
+        <h2 id="data-title" class="data-title">資料備份</h2>
+        <p id="data-note">所有員工與排班資料都保存在這台裝置的瀏覽器裡。若要換裝置或同時在電腦與手機使用，請先備份再還原。</p>
       </div>
       <div class="btn-group">
         <button type="button" class="btn btn-sm" id="btn-backup">備份資料</button>
@@ -88,10 +89,24 @@
   <div id="toast" role="status" aria-live="polite"></div>
   <div id="export-root" aria-hidden="true"></div>
 
+  <div id="modal" class="modal" hidden>
+    <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <h3 id="modal-title"></h3>
+      <p id="modal-msg"></p>
+      <input id="modal-input" type="text" maxlength="20" hidden>
+      <div class="modal-actions">
+        <button type="button" class="btn" id="modal-cancel">取消</button>
+        <button type="button" class="btn btn-primary" id="modal-ok">確定</button>
+      </div>
+    </div>
+  </div>
+
   <script src="vendor/html2canvas.min.js"></script>
   <script src="vendor/jspdf.umd.min.js"></script>
   <script src="vendor/xlsx.full.min.js"></script>
+  <script src="config.js"></script>
   <script src="js/scheduler.js"></script>
+  <script src="js/storage.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>
