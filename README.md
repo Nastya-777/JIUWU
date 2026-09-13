@@ -4,9 +4,14 @@
 
 ## 一、放到網路上（GitHub Pages）
 
-1. 到 GitHub 倉庫的 **Settings → Pages**。
-2. **Source** 選「Deploy from a branch」，Branch 選要發布的分支（例如 `main`），資料夾選 `/ (root)`，按 Save。
-3. 約一分鐘後，網址為 `https://<帳號>.github.io/JIUWU/`（例如 `https://nastya-777.github.io/JIUWU/`）。任何人用任何瀏覽器都能開啟。
+倉庫已內建自動發布流程（`.github/workflows/pages.yml`），每次推送都會重新發布。第一次需要在 GitHub 網站上做兩個設定（只做一次）：
+
+1. **把倉庫改為公開**（免費方案的私人倉庫無法使用 GitHub Pages）：
+   倉庫頁面 → **Settings** → **General** → 最下方 **Danger Zone** → **Change repository visibility** → **Make public**。
+2. **開啟 Pages**：**Settings** → **Pages** → **Build and deployment** → **Source** 選 **GitHub Actions**。
+3. 到 **Actions** 分頁，點左側 **Publish schedule site** → **Run workflow**（或隨便推送一次）。約一分鐘後完成。
+
+網址：`https://nastya-777.github.io/JIUWU/`。任何人用任何裝置、任何瀏覽器都能直接開啟，與 claude.ai 無關。
 
 也可以直接下載整個資料夾，雙擊 `index.html` 在本機使用。
 
