@@ -49,6 +49,7 @@ let t0 = Date.now();
   const nov = { year: 2026, month: 11, roster: names(3), prefs: {}, balances: {}, perDay: 2, prev: null };
   const novRes = S.generate(nov);
   const D = S.daysInMonth(2026, 11);
+  novRes.cells.e1[25] = 'R'; novRes.cells.e1[26] = 'R';
   for (let d = 27; d <= 30; d++) novRes.cells.e1[d] = 'W';
   const dec = { year: 2026, month: 12, roster: names(3), prefs: {}, balances: {}, perDay: 2, prev: { year: 2026, month: 11, cells: novRes.cells } };
   const decRes = S.generate(dec);
@@ -102,6 +103,7 @@ let t0 = Date.now();
       prefs[e] = {};
       for (let d = 1; d <= S.daysInMonth(y, m); d++) {
         const r = rng();
+        if (S.isFixedOff(y, m, d)) continue; // 週三固定全休，不可預選
         if (r < 0.06) prefs[e][d] = 'R'; else if (r < 0.08) prefs[e][d] = 'S';
       }
     }

@@ -1,0 +1,12 @@
+{
+  "name": "jiuwu_animal_hospital_schedule",
+  "version": "1.0.0",
+  "description": "JIUWU 動物醫院自動排班表（純前端網頁程式）",
+  "private": true,
+  "scripts": {
+    "test": "node test/scheduler.test.js",
+    "start": "python3 -m http.server 8080"
+  },
+  "license": "UNLICENSED",
+  "author": "KE FEI"
+}

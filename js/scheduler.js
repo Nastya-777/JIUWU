@@ -227,7 +227,8 @@
           if (run > MAX_STREAK) streakViol++;
           if (ctx.fixedOff[d]) fixedOffWork++;
           var w = ctx.weekIds[d];
-          week[w] = (week[w] || 0) + (week[w] === undefined && w === ctx.weekIds[1] ? (ctx.prevWeekWork[e] || 0) : 0) + 1;
+          if (week[w] === undefined) week[w] = (w === ctx.weekIds[1]) ? (ctx.prevWeekWork[e] || 0) : 0;
+          week[w]++;
           if (week[w] > WEEK_MAX) weekOver++;
         } else {
           run = 0;
@@ -524,7 +525,8 @@
           week[w]++;
           weekDays[w].push(d);
         } else {
-          if (run > MAX_STREAK) {
+          // 只回報有落在本月的連續區間（完全在上月的違規由上月自行顯示）
+          if (run > MAX_STREAK && d - 1 >= 1) {
             issues.push({ type: 'streak', employee: e, from: runStart, to: d - 1,
               message: nm(e) + '：' + rangeText(opts, ctx, runStart, d - 1) + ' 連續上班 ' + run + ' 天（超過 4 天上限）' });
           }
@@ -569,7 +571,13 @@
   }
 
   function rangeText(opts, ctx, from, to) {
-    var a = from < 1 ? '上月' + (daysInMonth.apply(null, [prevMonthOf(opts.year, opts.month).year, prevMonthOf(opts.year, opts.month).month]) + from) : opts.month + '/' + from;
+    var a;
+    if (from < 1) {
+      var pm = prevMonthOf(opts.year, opts.month);
+      a = pm.month + '/' + (daysInMonth(pm.year, pm.month) + from);
+    } else {
+      a = opts.month + '/' + from;
+    }
     return a + '～' + opts.month + '/' + to;
   }
 

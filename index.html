@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="application-name" content="JIUWU_animal_hospital_schedule">
+  <meta name="theme-color" content="#4FAEE3">
+  <title>JIUWU 動物醫院排班表</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%234FAEE3'/%3E%3Ccircle cx='11' cy='11' r='3' fill='%23fff'/%3E%3Ccircle cx='21' cy='11' r='3' fill='%23fff'/%3E%3Ccircle cx='7' cy='17' r='2.6' fill='%23fff'/%3E%3Ccircle cx='25' cy='17' r='2.6' fill='%23fff'/%3E%3Cpath d='M16 15c4 0 7 4 7 7.5 0 2.5-2 3.5-4 3-1.5-.4-2-1-3-1s-1.5.6-3 1c-2 .5-4-.5-4-3C9 19 12 15 16 15z' fill='%23fff'/%3E%3C/svg%3E">
+</head>
+<body>
+  <header class="app-header">
+    <div class="inner">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 32 32" fill="#fff"><circle cx="11" cy="11" r="3"/><circle cx="21" cy="11" r="3"/><circle cx="7" cy="17" r="2.6"/><circle cx="25" cy="17" r="2.6"/><path d="M16 15c4 0 7 4 7 7.5 0 2.5-2 3.5-4 3-1.5-.4-2-1-3-1s-1.5.6-3 1c-2 .5-4-.5-4-3C9 19 12 15 16 15z"/></svg>
+        </div>
+        <div>
+          <h1>JIUWU 動物醫院 自動排班表</h1>
+          <p class="brand-sub">JIUWU_animal_hospital_schedule</p>
+        </div>
+      </div>
+      <div class="header-tools">
+        <label for="month-select">排班月份
+          <select id="month-select" aria-label="選擇排班月份"></select>
+        </label>
+        <label for="per-day">每日出勤
+          <input id="per-day" type="number" min="1" max="20" step="1" value="2" inputmode="numeric"> 人
+        </label>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="card" aria-labelledby="emp-title">
+      <div class="card-head">
+        <h2 id="emp-title">員工</h2>
+        <span class="hint" id="emp-count"></span>
+      </div>
+      <div class="emp-list" id="emp-list"></div>
+      <form class="emp-form" id="emp-form" autocomplete="off">
+        <input id="emp-name" type="text" placeholder="輸入員工姓名" maxlength="20" aria-label="員工姓名">
+        <button type="submit" class="btn btn-primary">新增員工</button>
+      </form>
+    </section>
+
+    <section class="card" aria-labelledby="sched-title">
+      <div class="card-head">
+        <div class="sched-title">
+          <h2 id="sched-title">2026 年 9 月</h2>
+          <span class="meta" id="sched-meta"></span>
+        </div>
+        <span class="badge" id="status-badge"></span>
+      </div>
+
+      <div class="toolbar">
+        <div class="step" id="step-area"></div>
+        <div class="btn-group" id="action-area"></div>
+      </div>
+
+      <div class="grid-wrap" id="grid-wrap">
+        <table class="grid" id="grid" aria-label="排班表"></table>
+      </div>
+
+      <div class="legend" id="legend"></div>
+      <div class="issues" id="issues" aria-live="polite"></div>
+    </section>
+
+    <section class="card data-tools" aria-labelledby="data-title">
+      <div>
+        <h2 id="data-title" class="visually-hidden" style="font-size:15px;color:var(--sky-ink);margin-bottom:4px">資料備份</h2>
+        <p>所有員工與排班資料都保存在這台裝置的瀏覽器裡。若要換裝置或同時在電腦與手機使用，請先備份再還原。</p>
+      </div>
+      <div class="btn-group">
+        <button type="button" class="btn btn-sm" id="btn-backup">備份資料</button>
+        <button type="button" class="btn btn-sm" id="btn-restore">還原資料</button>
+        <input type="file" id="restore-file" accept="application/json,.json" hidden>
+      </div>
+    </section>
+  </main>
+
+  <footer>© 2026 KE FEI. All rights reserved.</footer>
+
+  <div id="toast" role="status" aria-live="polite"></div>
+  <div id="export-root" aria-hidden="true"></div>
+
+  <script src="vendor/html2canvas.min.js"></script>
+  <script src="vendor/jspdf.umd.min.js"></script>
+  <script src="vendor/xlsx.full.min.js"></script>
+  <script src="js/scheduler.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
