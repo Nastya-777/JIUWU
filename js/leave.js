@@ -9,7 +9,7 @@
  *
  * 補休：
  *   每經過一個國定假日 +1 天（入職前、系統啟用前的假日不計）；每一天加班 +1 天。
- *   使用補休 -1 天；未使用的補休一直保留。補休只能在取得之後使用，不得預支。
+ *   使用補休 -1 天；未使用的補休一直保留。補休可在發放日當天或之後使用，不得早於發放日。
  */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) module.exports = factory();
@@ -105,9 +105,9 @@
     var earned = compEarned(o, o.atDate, true), used = compUsed(o, o.atDate, true);
     return { earned: earned, used: used, remaining: earned - used };
   }
-  // 在 date 這天請補休前可用的天數（只算 date 之前取得的）
+  // 在 date 這天請補休前可用的天數（發放日當天即可使用；已使用的只算 date 之前的）
   function compAvailableOn(o) {
-    return compEarned(o, o.date, false) - compUsed(o, o.date, false);
+    return compEarned(o, o.date, true) - compUsed(o, o.date, false);
   }
 
   return {

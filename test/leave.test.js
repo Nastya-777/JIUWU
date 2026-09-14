@@ -40,8 +40,10 @@ const base = { hireDate: '2026-09-15', holidayDates: ['2026-01-01', '2026-09-10'
 assert.strictEqual(L.compStatus(Object.assign({ atDate: '2026-09-30' }, base)).earned, 1);      // 只有 9/28
 assert.strictEqual(L.compStatus(Object.assign({ atDate: '2026-10-31' }, base)).earned, 3);      // 9/28、10/3 加班、10/10
 assert.strictEqual(L.compStatus(Object.assign({ atDate: '2026-10-31' }, base)).remaining, 2);
-assert.strictEqual(L.compAvailableOn(Object.assign({ date: '2026-09-28' }, base)), 0);          // 假日當天不可用
+assert.strictEqual(L.compAvailableOn(Object.assign({ date: '2026-09-28' }, base)), 1);          // 假日當天即可使用
+assert.strictEqual(L.compAvailableOn(Object.assign({ date: '2026-09-27' }, base)), 0);          // 發放日之前不可
 assert.strictEqual(L.compAvailableOn(Object.assign({ date: '2026-09-29' }, base)), 1);
+assert.strictEqual(L.compAvailableOn(Object.assign({ date: '2026-10-03' }, base)), 2);          // 9/28 + 10/3 加班（當天即計）
 assert.strictEqual(L.compAvailableOn(Object.assign({ date: '2026-10-05' }, base)), 2);          // 9/28 + 10/3 加班
 assert.strictEqual(L.compAvailableOn(Object.assign({ date: '2026-10-06' }, base)), 1);          // 10/5 用掉一天
 // 未設入職日：假日仍計（啟用日起）

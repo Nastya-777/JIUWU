@@ -224,7 +224,7 @@
           if (avail <= 0) list.push({ cls: 'err', text: names[e] + '：' + p.month + '/' + d + ' 特休超出剩餘天數（當時剩 ' + Math.max(0, avail) + ' 天）。' });
         } else if (c === 'C') {
           var ca = L.compAvailableOn({ hireDate: hire, holidayDates: hol, overtimeDates: ld.O, compDates: ld.C, date: date });
-          if (ca < 1) list.push({ cls: 'err', text: names[e] + '：' + p.month + '/' + d + ' 補休超出可用天數（當時可用 ' + Math.max(0, ca) + ' 天），補休不得預支。' });
+          if (ca < 1) list.push({ cls: 'err', text: names[e] + '：' + p.month + '/' + d + ' 補休超出可用天數（當時可用 ' + Math.max(0, ca) + ' 天），補休不得早於發放日使用。' });
         }
       });
     });
@@ -516,13 +516,13 @@
 
     document.getElementById('legend').innerHTML =
       '<span><span class="sw sw-W"></span>上班</span><span><span class="sw sw-R"></span>休息</span><span><span class="sw sw-S"></span>特休</span>' +
-      '<span><span class="sw sw-C"></span>補休</span><span><span class="sw sw-O"></span>加班</span><span><span class="hm-legend">假</span>國定假日（標示，不一定放假）</span>';
+      '<span><span class="sw sw-C"></span>補休</span><span><span class="sw sw-O"></span>加班</span><span><span class="hm-legend">假</span>國定假日</span>';
 
     // 提醒
     var list = [];
     var N = t.roster.length;
     var holKeys = Object.keys(t.holidays).map(Number).sort(function (a, b) { return a - b; });
-    if (holKeys.length) list.push({ cls: '', text: '本月國定假日：' + holKeys.map(function (dd) { return p.month + '/' + dd + ' ' + t.holidays[dd].name + (t.holidays[dd].closed ? '（休診）' : ''); }).join('、') + '。每經過一個國定假日，每位員工獲得 1 天補休。' });
+    if (holKeys.length) list.push({ cls: '', text: '本月國定假日：' + holKeys.map(function (dd) { return p.month + '/' + dd + ' ' + t.holidays[dd].name + (t.holidays[dd].closed ? '（休診）' : ''); }).join('、') + '。' });
     if (N && !generated) {
       var a = t.avail;
       var shortDays = [];
