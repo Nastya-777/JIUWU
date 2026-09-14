@@ -25,8 +25,11 @@
         </div>
       </div>
       <div class="header-tools">
-        <label for="month-select">排班月份
-          <select id="month-select" aria-label="選擇排班月份"></select>
+        <label>排班月份
+          <span class="picker">
+            <select id="year-select" aria-label="選擇年份"></select>
+            <select id="month-select" aria-label="選擇月份"></select>
+          </span>
         </label>
         <label for="per-day">每日出勤
           <input id="per-day" type="number" min="1" max="20" step="1" value="2" inputmode="numeric"> 人
@@ -37,17 +40,38 @@
   </header>
 
   <main>
-    <section class="card" aria-labelledby="emp-title">
-      <div class="card-head">
-        <h2 id="emp-title">員工</h2>
-        <span class="hint" id="emp-count"></span>
-      </div>
-      <div class="emp-list" id="emp-list"></div>
-      <form class="emp-form" id="emp-form" autocomplete="off">
-        <input id="emp-name" type="text" placeholder="輸入員工姓名" maxlength="20" aria-label="員工姓名">
-        <button type="submit" class="btn btn-primary">新增員工</button>
-      </form>
-    </section>
+    <div class="two-col">
+      <section class="card" aria-labelledby="emp-title">
+        <div class="card-head">
+          <h2 id="emp-title">員工</h2>
+          <span class="hint" id="emp-count"></span>
+        </div>
+        <div class="emp-list" id="emp-list"></div>
+        <form class="emp-form" id="emp-form" autocomplete="off">
+          <input id="emp-name" type="text" placeholder="員工姓名" maxlength="20" aria-label="員工姓名">
+          <label class="inline-field">入職日期
+            <input id="emp-hire" type="date" aria-label="入職日期">
+          </label>
+          <button type="submit" class="btn btn-primary">新增員工</button>
+        </form>
+        <p class="note">入職日期用於計算特休：滿半年 3 天，滿 1 年 7 天，滿 2 年 10 天，滿 3 年 14 天，滿 5 年 15 天，滿 10 年起每年加 1 天，最多 30 天。</p>
+      </section>
+
+      <section class="card" aria-labelledby="hol-title">
+        <div class="card-head">
+          <h2 id="hol-title">國定假日 <span class="hint" id="holiday-year"></span></h2>
+          <span class="hint">請在選擇休假與生成排班表之前設定</span>
+        </div>
+        <div class="emp-list" id="holiday-list"></div>
+        <form class="emp-form" id="holiday-form" autocomplete="off">
+          <input id="holiday-date" type="date" aria-label="假日日期">
+          <input id="holiday-name" type="text" placeholder="假日名稱，例如 中秋節" maxlength="30" aria-label="假日名稱">
+          <label class="inline-field check"><input id="holiday-closed" type="checkbox"> 當天休診（全員休息）</label>
+          <button type="submit" class="btn btn-primary">新增假日</button>
+        </form>
+        <p class="note">國定假日會在排班表上標示，但不一定放假。每經過一個國定假日，每位員工獲得 1 天補休；補休只能在假日之後使用。</p>
+      </section>
+    </div>
 
     <section class="card" aria-labelledby="sched-title">
       <div class="card-head">
@@ -65,6 +89,12 @@
 
       <div class="grid-wrap" id="grid-wrap">
         <table class="grid" id="grid" aria-label="排班表"><tbody><tr class="empty-row"><td>載入中…</td></tr></tbody></table>
+      </div>
+
+      <div class="pager" id="pager">
+        <button type="button" class="btn btn-sm" data-nav="-1" id="pager-prev">‹ 上個月</button>
+        <span id="pager-label"></span>
+        <button type="button" class="btn btn-sm" data-nav="1" id="pager-next">下個月 ›</button>
       </div>
 
       <div class="legend" id="legend"></div>
@@ -93,7 +123,7 @@
     <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="modal-title">
       <h3 id="modal-title"></h3>
       <p id="modal-msg"></p>
-      <input id="modal-input" type="text" maxlength="20" hidden>
+      <div id="modal-fields" class="modal-fields" hidden></div>
       <div class="modal-actions">
         <button type="button" class="btn" id="modal-cancel">取消</button>
         <button type="button" class="btn btn-primary" id="modal-ok">確定</button>
@@ -106,6 +136,7 @@
   <script src="vendor/xlsx.full.min.js"></script>
   <script src="config.js"></script>
   <script src="js/scheduler.js"></script>
+  <script src="js/leave.js"></script>
   <script src="js/storage.js"></script>
   <script src="js/app.js"></script>
 </body>

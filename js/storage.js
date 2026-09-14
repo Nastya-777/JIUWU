@@ -64,7 +64,7 @@
     var pr = objectify(ms.prefs);
     Object.keys(pr).forEach(function (e) {
       var row = objectify(pr[e]), r = {};
-      Object.keys(row).forEach(function (d) { if (row[d] === 'R' || row[d] === 'S') r[d] = row[d]; });
+      Object.keys(row).forEach(function (d) { if (row[d] === 'R' || row[d] === 'S' || row[d] === 'C') r[d] = row[d]; });
       if (Object.keys(r).length) out.prefs[e] = r;
     });
     if (out.phase === 'generated') {
@@ -72,7 +72,7 @@
       var c = objectify(ms.cells);
       Object.keys(c).forEach(function (e) {
         var row = objectify(c[e]), r = {};
-        Object.keys(row).forEach(function (d) { if (row[d]) r[d] = row[d]; });
+        Object.keys(row).forEach(function (d) { if (row[d] === 'W' || row[d] === 'R' || row[d] === 'S' || row[d] === 'O' || row[d] === 'C') r[d] = row[d]; });
         out.cells[e] = r;
       });
       out.roster = Array.isArray(ms.roster) ? ms.roster.slice() : Object.keys(out.cells);
@@ -93,11 +93,12 @@
   }
   function normalize(d) {
     d = d && typeof d === 'object' ? d : {};
-    var out = { version: 1, employees: [], settings: { perDay: 2 }, months: {} };
+    var out = { version: 2, employees: [], settings: { perDay: 2 }, months: {}, holidays: {} };
     var emps = Array.isArray(d.employees) ? d.employees : Object.keys(objectify(d.employees)).map(function (k) { return d.employees[k]; });
     emps.forEach(function (e) {
       if (e && e.id && typeof e.name === 'string') {
-        out.employees.push({ id: e.id, name: e.name, createdAt: e.createdAt || 0, deleted: !!e.deleted, deletedAt: e.deletedAt || null });
+        var hire = /^\d{4}-\d{2}-\d{2}$/.test(String(e.hireDate || '')) ? e.hireDate : null;
+        out.employees.push({ id: e.id, name: e.name, hireDate: hire, createdAt: e.createdAt || 0, deleted: !!e.deleted, deletedAt: e.deletedAt || null });
       }
     });
     var pd = parseInt(d.settings && d.settings.perDay, 10);
@@ -105,6 +106,12 @@
     var months = objectify(d.months);
     Object.keys(months).forEach(function (k) {
       if (/^\d{4}-\d{2}$/.test(k)) out.months[k] = normMonth(months[k]);
+    });
+    var hol = objectify(d.holidays);
+    Object.keys(hol).forEach(function (k) {
+      if (/^\d{4}-\d{2}-\d{2}$/.test(k) && hol[k]) {
+        out.holidays[k] = { name: String(hol[k].name || '').slice(0, 30), closed: !!hol[k].closed };
+      }
     });
     return out;
   }
@@ -145,7 +152,7 @@
 
   // 把資料拆成可個別寫入的部分
   function parts(db) {
-    var out = { settings: db.settings, employees: db.employees };
+    var out = { settings: db.settings, employees: db.employees, holidays: db.holidays || {} };
     Object.keys(db.months || {}).forEach(function (k) { out['months/' + k] = db.months[k]; });
     return out;
   }
@@ -182,7 +189,7 @@
 
   function applyRemote(pathStr, data, isPatch) {
     var segs = pathStr.split('/').filter(Boolean);
-    var db = current ? JSON.parse(JSON.stringify(current)) : { version: 1, employees: [], settings: { perDay: 2 }, months: {} };
+    var db = current ? JSON.parse(JSON.stringify(current)) : { version: 2, employees: [], settings: { perDay: 2 }, months: {}, holidays: {} };
     if (segs.length === 0) {
       var whole = normalize(isPatch ? Object.assign({}, db, data || {}) : (data || {}));
       db = whole;

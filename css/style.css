@@ -18,6 +18,9 @@
   --rest-bg: #F7F9FB;  --rest-fg: #7A8A99;
   --wed-bg: #EBF0F4;   --wed-fg: #97A4B0;
   --special-bg: #E8E4F1; --special-fg: #5E5486;
+  --comp-bg: #E1EFE7;    --comp-fg: #3F7A5E;
+  --ot-bg: #BFDDF0;      --ot-fg: #14577F;
+  --holi: #C98A6B;
 
   --warn: #C27878;  --warn-bg: #FBEFEF;  --warn-line: #EBC9C9;
   --amber: #B8964F; --amber-bg: #FBF5E6; --amber-line: #EAD9AE;
@@ -91,6 +94,7 @@ button { cursor: pointer; }
   min-height: 38px;
 }
 .header-tools input[type="number"] { width: 68px; text-align: center; font-variant-numeric: tabular-nums; }
+.picker { display: inline-flex; gap: 6px; }
 .sync {
   display: inline-flex; align-items: center; gap: 6px;
   font-size: 12.5px; opacity: .92;
@@ -128,6 +132,14 @@ main > * { min-width: 0; }
 }
 .card-head h2 { font-size: 17px; font-weight: 700; color: var(--sky-ink); }
 .card-head .hint { color: var(--ink-3); font-size: 13px; }
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.note { margin: 10px 0 0; font-size: 12.5px; color: var(--ink-3); line-height: 1.5; }
+.inline-field { display: inline-flex; align-items: center; gap: 6px; font-size: 13.5px; color: var(--ink-2); white-space: nowrap; }
+.inline-field input[type="date"] {
+  border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 7px 10px; min-height: 40px; color: var(--ink);
+}
+.inline-field.check { cursor: pointer; }
+.inline-field.check input { width: 16px; height: 16px; accent-color: var(--sky); }
 
 /* ---------- 員工 ---------- */
 .emp-list { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; min-height: 36px; }
@@ -141,6 +153,19 @@ main > * { min-width: 0; }
   color: var(--sky-ink);
 }
 .emp-chip .name { font-weight: 500; }
+.emp-chip .sub { font-size: 11.5px; color: var(--ink-3); margin-left: 4px; }
+.emp-chip.nohire .sub { color: var(--amber); }
+.hol-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: #FBF3EE; border: 1px solid #EBD5C8; border-radius: 999px;
+  padding: 4px 6px 4px 12px; font-size: 14px; color: #8A5A3F;
+}
+.hol-chip .date { font-variant-numeric: tabular-nums; }
+.hol-chip .name { font-weight: 500; }
+.hol-chip .tag { font-size: 11px; background: #EBD5C8; color: #7A4A2F; border-radius: 999px; padding: 1px 7px; }
+.hol-chip.closed { background: #F3EAE4; }
+.hol-chip button { border: 0; background: transparent; color: var(--ink-3); width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; padding: 0; }
+.hol-chip button:hover, .hol-chip button:focus-visible { background: var(--warn-bg); color: var(--warn); }
 .emp-chip button {
   border: 0; background: transparent; color: var(--ink-3);
   width: 26px; height: 26px; border-radius: 50%;
@@ -150,8 +175,8 @@ main > * { min-width: 0; }
 .emp-chip button.del:hover, .emp-chip button.del:focus-visible { background: var(--warn-bg); color: var(--warn); }
 .emp-empty { color: var(--ink-3); font-size: 14px; align-self: center; }
 .emp-form { display: flex; flex-wrap: wrap; gap: 8px; }
-.emp-form input {
-  flex: 1 1 200px;
+.emp-form input[type="text"], .emp-form input[type="date"] {
+  flex: 1 1 160px;
   min-width: 0;
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
@@ -254,6 +279,9 @@ main > * { min-width: 0; }
 .sw-W { background: var(--work-bg); }
 .sw-R { background: var(--rest-bg); border-color: var(--line) !important; }
 .sw-S { background: var(--special-bg); }
+.sw-C { background: var(--comp-bg); }
+.sw-O { background: var(--ot-bg); }
+.hm-legend { display: inline-block; font-size: 10px; line-height: 1; padding: 2px 4px; border-radius: 4px; background: var(--holi); color: #fff; }
 
 /* ---------- 表格 ---------- */
 .grid-wrap {
@@ -290,6 +318,9 @@ table.grid thead th {
 table.grid thead th .dn { display: block; font-size: 13px; }
 table.grid thead th .dw { display: block; font-size: 11px; font-weight: 500; color: var(--ink-2); }
 table.grid thead th.stat { min-width: 44px; font-size: 12px; background: #F0F6FA; }
+table.grid thead th.holi { background: #FBF0EA; }
+table.grid thead th.holi .dn { color: var(--holi); }
+table.grid thead th .hm { display: block; font-size: 9.5px; line-height: 1.2; color: #fff; background: var(--holi); border-radius: 4px; margin: 2px auto 0; padding: 1px 3px; width: max-content; }
 table.grid th.name, table.grid td.name {
   position: sticky; left: 0; z-index: 1;
   background: var(--white);
@@ -318,6 +349,9 @@ table.grid td.cell:focus-visible { outline: none; box-shadow: inset 0 0 0 2px va
 table.grid td.c-W { background: var(--work-bg); color: var(--work-fg); }
 table.grid td.c-R { background: var(--rest-bg); color: var(--rest-fg); }
 table.grid td.c-S { background: var(--special-bg); color: var(--special-fg); }
+table.grid td.c-C { background: var(--comp-bg); color: var(--comp-fg); }
+table.grid td.c-O { background: var(--ot-bg); color: var(--ot-fg); font-weight: 700; }
+table.grid td.stat .dim { color: var(--ink-3); }
 table.grid td.c-E { background: var(--white); color: var(--ink-3); }
 table.grid td.wed { cursor: default; }
 table.grid td.wed:hover { box-shadow: none; }
@@ -339,6 +373,10 @@ table.grid tfoot td.short { background: var(--warn-bg); color: var(--warn); }
 table.grid tfoot td.over { background: var(--amber-bg); color: var(--amber); }
 table.grid tfoot td.wed { color: var(--ink-3); }
 table.grid .empty-row td { padding: 22px 16px; color: var(--ink-3); text-align: left; }
+
+/* ---------- 翻頁 ---------- */
+.pager { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 12px; }
+.pager span { font-weight: 600; color: var(--sky-ink); min-width: 110px; text-align: center; }
 
 /* ---------- 圖例與提醒 ---------- */
 .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 12px; font-size: 13px; color: var(--ink-2); }
@@ -400,6 +438,9 @@ footer {
 }
 .modal-box input:focus { outline: 2px solid var(--sky); outline-offset: 1px; border-color: var(--sky); }
 .modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.modal-fields { display: grid; gap: 10px; margin-bottom: 14px; }
+.modal-field { display: grid; gap: 4px; font-size: 13px; color: var(--ink-2); }
+.modal-field input { margin: 0; }
 
 /* ---------- 提示 ---------- */
 #toast {
@@ -430,6 +471,9 @@ footer {
 #export-root .x-foot { margin-top: 14px; font-size: 12px; color: var(--ink-3); display: flex; justify-content: space-between; }
 
 /* ---------- 手機 ---------- */
+@media (max-width: 900px) {
+  .two-col { grid-template-columns: 1fr; }
+}
 @media (max-width: 640px) {
   body { font-size: 14px; }
   .brand-mark { width: 40px; height: 40px; }
