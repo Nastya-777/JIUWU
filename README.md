@@ -1,4 +1,4 @@
-# 久吾動物醫院 自動排班表
+# 久吾動物醫院 排班表
 
 網址：**https://nastya-777.github.io/Jiuwu/**
 
