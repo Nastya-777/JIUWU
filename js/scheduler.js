@@ -6,7 +6,8 @@
  * 規則摘要：
  *  - 每週三固定全員休息；另可指定「休診日」（國定假日休診）同樣全員休息。
  *  - 任何人連續上班不得超過 4 天（跨月連續計算）。
- *  - 每人每天出勤 10 小時；任何連續 28 天內出勤不得超過 160 小時（16 天），跨月計算。
+ *  - 每人每天出勤 10 小時；以 2026-10-05（週一）起每 28 天為一個週期，每週期出勤不得超過 16 天（160 小時），
+ *    週期跨月時合併計算；2026-10-05 之前的排班不受此限。
  *  - 每日預設 2 人出勤（perDay 可調）；人力不足時，缺人優先落在週二、週四。
  *  - 一週（週一～週日）上班盡量不超過 4 天（軟性）。
  *  - 員工事先選定的「休息」「特休」「補休」必須尊重。
@@ -27,9 +28,9 @@
   var MAX_STREAK = 4;            // 連續上班上限
   var WEEK_MAX = 4;              // 一週上班上限（軟性）
   var HOURS_PER_DAY = 10;        // 每日出勤時數
-  var WINDOW_DAYS = 28;          // 滾動視窗天數
-  var WINDOW_MAX_HOURS = 160;    // 視窗內出勤時數上限
-  var WINDOW_MAX_WORK = WINDOW_MAX_HOURS / HOURS_PER_DAY;   // 16 天
+  var CYCLE_DAYS = 28;           // 週期天數
+  var CYCLE_MAX_WORK = 16;       // 每週期出勤天數上限（160 小時）
+  var CYCLE_EPOCH = Math.floor(Date.UTC(2026, 9, 5) / 86400000);   // 週期起算日 2026-10-05（週一）
   var FIXED_OFF_WEEKDAY = 3;     // 週三（0 = 週日）
   var SHORTAGE_PREFERRED = { 2: true, 4: true };  // 缺人優先落在週二、週四
   var START_YEAR = 2026;
@@ -40,7 +41,7 @@
     shortagePreferred: 600, // 每日出勤不足 1 人（週二、週四）
     over: 300,             // 一般上班人數超過需求 1 人
     streak: 500,           // 連續上班超過 4 天，每多 1 天
-    window: 500,           // 28 天內出勤超過 16 天，每多 1 天
+    cycle: 500,            // 週期內出勤超過 16 天，每多 1 天
     fixedOff: 500,         // 固定休息日有人上班
     weekOver: 40,          // 一週上班超過 4 天，每多 1 天
     deviation: 10,         // 與目標上班天數的差距，每 1 天
@@ -52,6 +53,12 @@
   function weekday(y, m, d) { return new Date(Date.UTC(y, m - 1, d)).getUTCDay(); }
   function dayNumber(y, m, d) { return Math.floor(Date.UTC(y, m - 1, d) / 86400000); }
   function weekIdOf(dn) { return Math.floor((dn + 3) / 7); }   // 以週一為一週開始
+  function cycleOf(dn) { return dn < CYCLE_EPOCH ? -1 : Math.floor((dn - CYCLE_EPOCH) / CYCLE_DAYS); }
+  function cycleRange(c) {
+    var start = CYCLE_EPOCH + c * CYCLE_DAYS, end = start + CYCLE_DAYS - 1;
+    var a = new Date(start * 86400000), b = new Date(end * 86400000);
+    return { start: start, end: end, text: (a.getUTCMonth() + 1) + '/' + a.getUTCDate() + '～' + (b.getUTCMonth() + 1) + '/' + b.getUTCDate() };
+  }
   function isFixedOff(y, m, d) { return weekday(y, m, d) === FIXED_OFF_WEEKDAY; }
   function prevMonthOf(y, m) { return m === 1 ? { year: y - 1, month: 12 } : { year: y, month: m - 1 }; }
   function nextMonthOf(y, m) { return m === 12 ? { year: y + 1, month: 1 } : { year: y, month: m + 1 }; }
@@ -81,17 +88,17 @@
     return (row && row[d]) || CODE.EMPTY;
   }
 
-  // 前一個月：月底連續上班天數、落在本月第一週的上班天數、最後 27 天的出勤旗標
+  // 前一個月：月底連續上班天數、落在本月第一週的上班天數、落在本月第一個週期內的出勤天數
   function tailInfo(prev, roster, year, month) {
-    var streak = {}, weekWork = {}, prevWork = {};
+    var streak = {}, weekWork = {}, prevCycleWork = {};
     var firstWeek = weekIdOf(dayNumber(year, month, 1));
+    var firstCycle = cycleOf(dayNumber(year, month, 1));
     var i, e;
     for (i = 0; i < roster.length; i++) {
       e = roster[i];
-      streak[e] = 0; weekWork[e] = 0;
-      prevWork[e] = new Array(WINDOW_DAYS).fill(false);   // index k ↔ 第 (k - 27) 天，k=27 ↔ 第 0 天（上月最後一天）
+      streak[e] = 0; weekWork[e] = 0; prevCycleWork[e] = 0;
     }
-    if (!prev || !prev.cells) return { streak: streak, weekWork: weekWork, prevWork: prevWork };
+    if (!prev || !prev.cells) return { streak: streak, weekWork: weekWork, prevCycleWork: prevCycleWork };
     var pd = daysInMonth(prev.year, prev.month);
     for (i = 0; i < roster.length; i++) {
       e = roster[i];
@@ -105,13 +112,16 @@
         if (weekIdOf(dayNumber(prev.year, prev.month, k)) === firstWeek && isWork(getCell(prev.cells, e, k))) ww++;
       }
       weekWork[e] = ww;
-      for (var back = 0; back < WINDOW_DAYS - 1; back++) {
-        var pdDay = pd - back;
-        if (pdDay < 1) break;
-        prevWork[e][WINDOW_DAYS - 1 - back] = isWork(getCell(prev.cells, e, pdDay));
+      var cw = 0;
+      if (firstCycle >= 0) {
+        for (var q = pd; q >= 1; q--) {
+          if (cycleOf(dayNumber(prev.year, prev.month, q)) !== firstCycle) break;
+          if (isWork(getCell(prev.cells, e, q))) cw++;
+        }
       }
+      prevCycleWork[e] = cw;
     }
-    return { streak: streak, weekWork: weekWork, prevWork: prevWork };
+    return { streak: streak, weekWork: weekWork, prevCycleWork: prevCycleWork };
   }
 
   function buildContext(opts) {
@@ -122,12 +132,13 @@
     var perDay = Math.max(1, parseInt(opts.perDay, 10) || 2);
     var closed = {};
     (opts.closedDays || []).forEach(function (d) { closed[d] = true; });
-    var fixedOff = [null], weekIds = [null], weekdays = [null], need = [0];
+    var fixedOff = [null], weekIds = [null], weekdays = [null], need = [0], cycles = [null];
     var workableDays = 0;
     for (var d = 1; d <= D; d++) {
       var off = isFixedOff(year, month, d) || !!closed[d];
       fixedOff.push(off);
       weekIds.push(weekIdOf(dayNumber(year, month, d)));
+      cycles.push(cycleOf(dayNumber(year, month, d)));
       weekdays.push(weekday(year, month, d));
       need.push(off ? 0 : perDay);
       if (!off) workableDays++;
@@ -160,24 +171,36 @@
 
     return {
       year: year, month: month, D: D, roster: roster, perDay: perDay,
-      fixedOff: fixedOff, weekIds: weekIds, weekdays: weekdays, need: need,
+      fixedOff: fixedOff, weekIds: weekIds, weekdays: weekdays, need: need, cycles: cycles,
       workableDays: workableDays, totalSlots: perDay * workableDays,
       pref: pref, avail: avail, availSuffix: availSuffix, excluded: excluded,
-      prevStreak: tail.streak, prevWeekWork: tail.weekWork, prevWork: tail.prevWork,
+      prevStreak: tail.streak, prevWeekWork: tail.weekWork, prevCycleWork: tail.prevCycleWork,
       balances: opts.balances || {}
     };
   }
 
-  /* ---------- 結構上限：單獨看一個人，在連續 4 天與 28 天 16 天的限制下本月最多能上幾天 ---------- */
+  /* ---------- 週期計數 ---------- */
+  function newCycleCounter(ctx, e) {
+    var c = {};
+    if (ctx.cycles[1] >= 0) c[ctx.cycles[1]] = ctx.prevCycleWork[e] || 0;
+    return c;
+  }
+  function cycleFull(ctx, counter, d) {
+    var c = ctx.cycles[d];
+    return c >= 0 && (counter[c] || 0) >= CYCLE_MAX_WORK;
+  }
+  function cycleAdd(ctx, counter, d) {
+    var c = ctx.cycles[d];
+    if (c >= 0) counter[c] = (counter[c] || 0) + 1;
+  }
+
+  /* ---------- 結構上限：單獨看一個人，在連續 4 天與週期 16 天的限制下本月最多能上幾天 ---------- */
   function structuralCap(ctx, e) {
-    var ext = new Array(OFF + ctx.D + 1).fill(false);
-    var pw = ctx.prevWork[e];
-    for (var k = 1; k < WINDOW_DAYS; k++) ext[k] = !!pw[k];
+    var counter = newCycleCounter(ctx, e);
     var streak = ctx.prevStreak[e] || 0, n = 0;
     for (var d = 1; d <= ctx.D; d++) {
-      // ext[OFF + d] 此時為 false，windowCount(ext, d) 即為前 27 天的出勤數
-      if (ctx.pref[e][d] !== CODE.EMPTY || streak >= MAX_STREAK || windowCount(ext, d) >= WINDOW_MAX_WORK) { streak = 0; continue; }
-      ext[OFF + d] = true; streak++; n++;
+      if (ctx.pref[e][d] !== CODE.EMPTY || streak >= MAX_STREAK || cycleFull(ctx, counter, d)) { streak = 0; continue; }
+      cycleAdd(ctx, counter, d); streak++; n++;
     }
     return n;
   }
@@ -230,38 +253,10 @@
     return { target: target, unfillable: left, totalSlots: T };
   }
 
-  /* ---------- 時間軸（含上月最後 27 天） ---------- */
-  // OFF 與 windowCount 定義於下方；函式宣告會被提升，OFF 為常數故於此重複宣告
-  var OFF = WINDOW_DAYS - 1;   // ext[OFF + d] ↔ 第 d 天；d 由 -26 到 D
-  function buildTimeline(ctx, row, e) {
-    var ext = new Array(OFF + ctx.D + 1).fill(false);
-    var pw = ctx.prevWork[e];
-    for (var k = 1; k < WINDOW_DAYS; k++) ext[k] = !!pw[k];      // ext[k] ↔ 第 k-27 天
-    for (var d = 1; d <= ctx.D; d++) ext[OFF + d] = isWork(row[d]);
-    return ext;
-  }
-  // 視窗 [t-27, t] 的出勤天數
-  function windowCount(ext, t) {
-    var c = 0;
-    for (var k = OFF + t - (WINDOW_DAYS - 1); k <= OFF + t; k++) if (k >= 1 && ext[k]) c++;
-    return c;
-  }
-  // 若第 d 天出勤，所有落在本月、且包含第 d 天的視窗是否仍 ≤ 上限
-  function windowOkIfWork(ctx, ext, d) {
-    var was = ext[OFF + d];
-    ext[OFF + d] = true;
-    var ok = true;
-    for (var t = d; t <= Math.min(ctx.D, d + WINDOW_DAYS - 1); t++) {
-      if (windowCount(ext, t) > WINDOW_MAX_WORK) { ok = false; break; }
-    }
-    ext[OFF + d] = was;
-    return ok;
-  }
-
   /* ---------- 評分 ---------- */
   function evaluate(ctx, cells, target) {
     var D = ctx.D, roster = ctx.roster;
-    var shortageCost = 0, shortage = 0, over = 0, streakViol = 0, fixedOffWork = 0, weekOver = 0, deviation = 0, isolated = 0, windowViol = 0;
+    var shortageCost = 0, shortage = 0, over = 0, streakViol = 0, fixedOffWork = 0, weekOver = 0, deviation = 0, isolated = 0, cycleViol = 0;
     var d, i, e;
     var cover = new Array(D + 1).fill(0);
     var coverW = new Array(D + 1).fill(0);
@@ -272,7 +267,7 @@
       var week = {};
       var work = 0;
       var prevWorkFlag = (ctx.prevStreak[e] || 0) > 0;
-      var ext = buildTimeline(ctx, row, e);
+      var counter = newCycleCounter(ctx, e);
       for (d = 1; d <= D; d++) {
         var c = row[d];
         var isW = isWork(c);
@@ -287,11 +282,11 @@
           if (week[w] === undefined) week[w] = (w === ctx.weekIds[1]) ? (ctx.prevWeekWork[e] || 0) : 0;
           week[w]++;
           if (week[w] > WEEK_MAX) weekOver++;
+          if (cycleFull(ctx, counter, d)) cycleViol++;
+          cycleAdd(ctx, counter, d);
         } else {
           run = 0;
         }
-        var wc = windowCount(ext, d);
-        if (wc > WINDOW_MAX_WORK) windowViol += wc - WINDOW_MAX_WORK;
         if (d >= 2 && d <= D - 1) {
           var a = isWork(row[d - 1]), b = isWork(row[d + 1]);
           if (isW && !a && !b) isolated++;
@@ -312,17 +307,17 @@
       }
       if (coverW[d] > need) over += coverW[d] - need;
     }
-    var cost = shortageCost + COST.over * over + COST.streak * streakViol + COST.window * windowViol +
+    var cost = shortageCost + COST.over * over + COST.streak * streakViol + COST.cycle * cycleViol +
       COST.fixedOff * fixedOffWork + COST.weekOver * weekOver + COST.deviation * deviation +
       COST.isolated * isolated;
-    return { cost: cost, shortage: shortage, over: over, streakViol: streakViol, windowViol: windowViol,
+    return { cost: cost, shortage: shortage, over: over, streakViol: streakViol, cycleViol: cycleViol,
       weekOver: weekOver, deviation: deviation, isolated: isolated, cover: cover };
   }
 
   /* ---------- 貪婪產生 ---------- */
   function greedy(ctx, rng, target) {
     var D = ctx.D, roster = ctx.roster;
-    var cells = {}, work = {}, streak = {}, weekWork = {}, ext = {};
+    var cells = {}, work = {}, streak = {}, weekWork = {}, cyc = {};
     var i, e, d;
     for (i = 0; i < roster.length; i++) {
       e = roster[i];
@@ -332,7 +327,7 @@
       streak[e] = ctx.prevStreak[e] || 0;
       weekWork[e] = {};
       weekWork[e][ctx.weekIds[1]] = ctx.prevWeekWork[e] || 0;
-      ext[e] = buildTimeline(ctx, cells[e], e);
+      cyc[e] = newCycleCounter(ctx, e);
     }
     for (d = 1; d <= D; d++) {
       if (ctx.fixedOff[d]) {
@@ -347,8 +342,8 @@
         var pc = ctx.pref[e][d];
         if (pc !== CODE.EMPTY) { cells[e][d] = pc; continue; }
         if (streak[e] >= MAX_STREAK) { cells[e][d] = CODE.REST; continue; }
-        // 28 天視窗：前 27 天已達上限則今日不可出勤（ext[OFF+d] 尚為 false）
-        if (windowCount(ext[e], d) >= WINDOW_MAX_WORK) { cells[e][d] = CODE.REST; continue; }
+        // 週期內已達 16 天則今日不可出勤
+        if (cycleFull(ctx, cyc[e], d)) { cells[e][d] = CODE.REST; continue; }
         var deficit = (target[e] || 0) - work[e];
         var remain = ctx.availSuffix[e][d];
         var s;
@@ -364,7 +359,7 @@
         if (picked < need) {
           cells[e][d] = CODE.WORK; work[e]++; streak[e]++;
           weekWork[e][w] = (weekWork[e][w] || 0) + 1;
-          ext[e][OFF + d] = true;
+          cycleAdd(ctx, cyc[e], d);
           picked++;
         } else {
           cells[e][d] = CODE.REST; streak[e] = 0;
@@ -387,7 +382,11 @@
   }
   function canWork(ctx, cells, e, d) {
     if (runIfWork(ctx, cells[e], e, d) > MAX_STREAK) return false;
-    return windowOkIfWork(ctx, buildTimeline(ctx, cells[e], e), d);
+    var c = ctx.cycles[d];
+    if (c < 0) return true;
+    var n = (c === ctx.cycles[1]) ? (ctx.prevCycleWork[e] || 0) : 0;
+    for (var k = 1; k <= ctx.D; k++) if (k !== d && ctx.cycles[k] === c && isWork(cells[e][k])) n++;
+    return n < CYCLE_MAX_WORK;
   }
   function shuffle(arr, rng) {
     for (var i = arr.length - 1; i > 0; i--) {
@@ -652,17 +651,15 @@
             message: nm(e) + '：' + rangeText(opts, runStart, D) + ' 起連續上班至 ' + opts.next.month + '/' + lead + '，共 ' + (run + lead) + ' 天（跨月超過 4 天上限）' });
         }
       }
-      // 28 天內出勤時數
-      var ext = buildTimeline(ctx, row, e);
-      var worst = 0, worstEnd = 0;
-      for (d = 1; d <= D; d++) {
-        var wc = windowCount(ext, d);
-        if (wc > worst) { worst = wc; worstEnd = d; }
-      }
-      if (worst > WINDOW_MAX_WORK) {
-        issues.push({ type: 'hours', employee: e, day: worstEnd,
-          message: nm(e) + '：' + rangeText(opts, worstEnd - (WINDOW_DAYS - 1), worstEnd) + ' 這 28 天內出勤 ' + (worst * HOURS_PER_DAY) + ' 小時（超過 ' + WINDOW_MAX_HOURS + ' 小時上限）' });
-      }
+      // 週期內出勤天數（含上月落在同一週期的部分）
+      var counts = newCycleCounter(ctx, e);
+      for (d = 1; d <= D; d++) if (isWork(row[d])) cycleAdd(ctx, counts, d);
+      Object.keys(counts).map(Number).sort(function (a, b) { return a - b; }).forEach(function (c) {
+        if (counts[c] > CYCLE_MAX_WORK) {
+          issues.push({ type: 'hours', employee: e, cycle: c,
+            message: nm(e) + '：' + cycleRange(c).text + ' 這個 28 天週期出勤 ' + counts[c] + ' 天（' + (counts[c] * HOURS_PER_DAY) + ' 小時），超過 ' + CYCLE_MAX_WORK + ' 天（' + (CYCLE_MAX_WORK * HOURS_PER_DAY) + ' 小時）上限' });
+        }
+      });
     }
     for (d = 1; d <= D; d++) {
       if (ctx.fixedOff[d]) continue;
@@ -700,8 +697,12 @@
     MAX_STREAK: MAX_STREAK,
     WEEK_MAX: WEEK_MAX,
     HOURS_PER_DAY: HOURS_PER_DAY,
-    WINDOW_DAYS: WINDOW_DAYS,
-    WINDOW_MAX_HOURS: WINDOW_MAX_HOURS,
+    CYCLE_DAYS: CYCLE_DAYS,
+    CYCLE_MAX_WORK: CYCLE_MAX_WORK,
+    CYCLE_EPOCH: CYCLE_EPOCH,
+    cycleOf: cycleOf,
+    cycleRange: cycleRange,
+    dayNumber: dayNumber,
     FIXED_OFF_WEEKDAY: FIXED_OFF_WEEKDAY,
     START_YEAR: START_YEAR,
     START_MONTH: START_MONTH,

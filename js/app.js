@@ -406,7 +406,7 @@
       h.push('<th class="' + cls + '"' + (hd ? ' title="' + esc(hd.name) + (hd.closed ? '（休診）' : '') + '"' : '') + '><span class="dn">' + d + '</span><span class="dw">' + WD[S.weekday(year, month, d)] + '</span>' + (hd ? '<span class="hm">' + (hd.closed ? '休診' : '假') + '</span>' : '') + '</th>');
     }
     if (generated) {
-      h.push('<th class="stat">上班</th><th class="stat">時數</th><th class="stat">休息</th><th class="stat">特休</th><th class="stat">補休</th><th class="stat">加班</th><th class="stat" title="依入職年資計算，至本月底的剩餘特休天數">剩餘特休</th><th class="stat" title="國定假日與加班取得的補休，扣除已使用後至本月底的剩餘天數">剩餘補休</th>');
+      h.push('<th class="stat">上班</th><th class="stat">休息</th><th class="stat">特休</th><th class="stat">補休</th><th class="stat">加班</th><th class="stat" title="依入職年資計算，至本月底的剩餘特休天數">剩餘特休</th><th class="stat" title="國定假日與加班取得的補休，扣除已使用後至本月底的剩餘天數">剩餘補休</th>');
     } else {
       h.push('<th class="stat">已選休息</th><th class="stat">特休</th><th class="stat">補休</th><th class="stat" title="依入職年資計算，至本月底的剩餘特休天數">剩餘特休</th><th class="stat" title="國定假日與加班取得的補休，扣除已使用後至本月底的剩餘天數">剩餘補休</th>');
     }
@@ -436,7 +436,7 @@
       var spTxt = li.special ? String(li.special.remaining) : '<span class="dim" title="未設定入職日期">—</span>';
       var cpTxt = String(li.comp.remaining);
       if (generated) {
-        h.push('<td class="stat">' + cnt.W + '</td><td class="stat">' + ((cnt.W + cnt.O) * S.HOURS_PER_DAY) + '</td><td class="stat">' + cnt.R + '</td><td class="stat">' + cnt.S + '</td><td class="stat">' + cnt.C + '</td><td class="stat">' + cnt.O + '</td>' +
+        h.push('<td class="stat">' + cnt.W + '</td><td class="stat">' + cnt.R + '</td><td class="stat">' + cnt.S + '</td><td class="stat">' + cnt.C + '</td><td class="stat">' + cnt.O + '</td>' +
           '<td class="stat bal' + (li.special && li.special.remaining < 0 ? ' neg' : '') + '">' + spTxt + '</td><td class="stat bal' + (li.comp.remaining < 0 ? ' neg' : '') + '">' + cpTxt + '</td>');
       } else {
         h.push('<td class="stat">' + cnt.selR + '</td><td class="stat">' + cnt.S + '</td><td class="stat">' + cnt.C + '</td>' +
@@ -454,7 +454,7 @@
         var c3 = n < perDay ? ' class="short"' : '';
         h.push('<td' + c3 + '>' + n + '</td>');
       }
-      h.push('<td class="stat" colspan="' + (generated ? 8 : 5) + '"></td></tr></tfoot>');
+      h.push('<td class="stat" colspan="' + (generated ? 7 : 5) + '"></td></tr></tfoot>');
     }
     return { html: h.join(''), validation: validation, avail: avail, roster: roster, perDay: perDay, D: D, generated: generated, counts: counts, leave: leave, names: names, holidays: hol, closed: closed };
   }
@@ -529,7 +529,7 @@
       for (var dd = 1; dd <= t.D; dd++) if (!isOffDay(key, dd) && a.perDayAvail[dd] < t.perDay) shortDays.push(p.month + '/' + dd);
       if (shortDays.length) list.push({ cls: 'warn', text: '以下日期可出勤人數少於 ' + t.perDay + ' 人：' + shortDays.join('、') + '。生成後這些日子會出勤不足。' });
       if (a.totalAvail < a.totalSlots) list.push({ cls: 'warn', text: '本月總可出勤人日 ' + a.totalAvail + ' 少於需求 ' + a.totalSlots + '（' + t.perDay + ' 人 × ' + workable + ' 天），部分日子將無法排滿，缺人會優先安排在週二、週四。' });
-      if (N * 4 < t.perDay * 6) list.push({ cls: 'warn', text: '員工人數不足以維持上四休三與 28 天 160 小時上限：每週需 ' + (t.perDay * 6) + ' 人日，' + N + ' 人每週最多 ' + (N * 4) + ' 人日。缺人會優先安排在週二、週四。' });
+      if (N * 4 < t.perDay * 6) list.push({ cls: 'warn', text: '員工人數不足以維持上四休三與每週期 16 天上限：每週需 ' + (t.perDay * 6) + ' 人日，' + N + ' 人每週最多 ' + (N * 4) + ' 人日。缺人會優先安排在週二、週四。' });
       var fairRest = workable - (t.perDay * workable) / N;
       if (fairRest > 0) {
         var fr = Math.round(fairRest);
@@ -558,7 +558,7 @@
           else if (dl <= -2) list.push({ cls: 'warn', text: t.names[e] + '：本月休息 ' + t.counts[e].R + ' 天，比平均少 ' + abs1(dl) + ' 天（下月會多排休）。' });
         });
       }
-      if (!list.some(function (i) { return i.cls; })) list.push({ cls: 'ok', text: '排班符合所有規則：每日 ' + t.perDay + ' 人出勤、無人連續上班超過 4 天、28 天內不超過 160 小時、休息天數平均。' });
+      if (!list.some(function (i) { return i.cls; })) list.push({ cls: 'ok', text: '排班符合所有規則：每日 ' + t.perDay + ' 人出勤、無人連續上班超過 4 天、每個 28 天週期不超過 16 天、休息天數平均。' });
     }
     document.getElementById('issues').innerHTML = list.map(function (i) { return '<div class="issue ' + i.cls + '">' + esc(i.text) + '</div>'; }).join('');
     renderHeader();
@@ -593,7 +593,7 @@
     var stamp = new Date().toLocaleString('zh-TW', { hour12: false });
     root.innerHTML =
       '<p class="x-title">久吾動物醫院 排班表　' + monthLabel(key) + '</p>' +
-      '<p class="x-meta">' + (t.D - offCount) + ' 個營業日 · 每日 ' + t.perDay + ' 人出勤 · 每日 ' + S.HOURS_PER_DAY + ' 小時' + (m.savedAt ? ' · 儲存於 ' + new Date(m.savedAt).toLocaleString('zh-TW', { hour12: false }) : '') + '</p>' +
+      '<p class="x-meta">' + (t.D - offCount) + ' 個營業日 · 每日 ' + t.perDay + ' 人出勤' + (m.savedAt ? ' · 儲存於 ' + new Date(m.savedAt).toLocaleString('zh-TW', { hour12: false }) : '') + '</p>' +
       '<table class="grid">' + t.html + '</table>' +
       '<div class="legend"><span><span class="sw sw-W"></span>班＝上班</span><span><span class="sw sw-R"></span>休＝休息</span><span><span class="sw sw-S"></span>特＝特休</span><span><span class="sw sw-C"></span>補＝補休</span><span><span class="sw sw-O"></span>加＝加班</span><span><span class="hm-legend">假</span>國定假日</span></div>' +
       '<div class="x-foot"><span>列印時間 ' + stamp + '</span><span>© ' + p.year + ' KE FEI. All rights reserved.</span></div>';
@@ -656,7 +656,7 @@
     aoa.push(['久吾動物醫院 排班表 ' + monthLabel(key)]);
     var head = ['員工'];
     for (var d = 1; d <= D; d++) head.push(p.month + '/' + d + ' ' + WD[S.weekday(p.year, p.month, d)] + (t.holidays[d] ? ' 假' : ''));
-    head.push('上班', '時數', '休息', '特休', '補休', '加班', '剩餘特休', '剩餘補休');
+    head.push('上班', '休息', '特休', '補休', '加班', '剩餘特休', '剩餘補休');
     aoa.push(head);
     var cover = new Array(D + 1).fill(0);
     t.roster.forEach(function (e) {
@@ -667,18 +667,18 @@
         row.push(SHORT[code]);
       }
       var c = t.counts[e], li = t.leave[e];
-      row.push(c.W, (c.W + c.O) * S.HOURS_PER_DAY, c.R, c.S, c.C, c.O, li.special ? li.special.remaining : '未設入職日', li.comp.remaining);
+      row.push(c.W, c.R, c.S, c.C, c.O, li.special ? li.special.remaining : '未設入職日', li.comp.remaining);
       aoa.push(row);
     });
     var foot = ['出勤人數'];
     for (var d2 = 1; d2 <= D; d2++) foot.push(isOffDay(key, d2) ? '–' : cover[d2]);
     aoa.push(foot);
     aoa.push([]);
-    aoa.push(['說明：班＝上班、休＝休息、特＝特休、補＝補休、加＝加班；每日 ' + perDay + ' 人出勤，每人每日 ' + S.HOURS_PER_DAY + ' 小時；連續上班不超過 4 天；28 天內不超過 160 小時。']);
+    aoa.push(['說明：班＝上班、休＝休息、特＝特休、補＝補休、加＝加班；每日 ' + perDay + ' 人出勤；連續上班不超過 4 天；自 2026/10/5 起每 28 天週期出勤不超過 16 天。']);
     aoa.push(['© ' + p.year + ' KE FEI. All rights reserved.']);
     var ws = XLSX.utils.aoa_to_sheet(aoa);
-    ws['!cols'] = [{ wch: 14 }].concat(new Array(D).fill({ wch: 7 })).concat(new Array(8).fill({ wch: 8 }));
-    ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: Math.min(D + 8, 12) } }];
+    ws['!cols'] = [{ wch: 14 }].concat(new Array(D).fill({ wch: 7 })).concat(new Array(7).fill({ wch: 8 }));
+    ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: Math.min(D + 7, 12) } }];
     var wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, p.year + '年' + p.month + '月');
     var out = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });

@@ -55,40 +55,48 @@ let t0 = Date.now();
   console.log('cross-month OK');
 }
 
-// 3. 28 天 160 小時：手動造出 17 天 → 必須回報 hours；跨月也要算
+// 3. 週期（2026-10-05 起每 28 天）出勤上限 16 天：週期前的日子不計；跨月合併
 {
   const roster = names(4);
-  const cells = {};
-  for (const e of roster) { cells[e] = {}; for (let d = 1; d <= 31; d++) cells[e][d] = 'R'; }
-  // e1：10 月 1~28 日中排 17 個工作日（避開週三、避免連 5 天）
-  let n = 0;
-  for (let d = 1; d <= 28 && n < 17; d++) {
-    if (isWed(2026, 10, d)) continue;
-    if (d % 5 === 0) continue;
-    cells.e1[d] = 'W'; n++;
-  }
-  const v = S.validate({ year: 2026, month: 10, roster, cells, perDay: 2 });
+  const blank = (D) => { const c = {}; for (const e of roster) { c[e] = {}; for (let d = 1; d <= D; d++) c[e][d] = 'R'; } return c; };
+  // 10/1~10/4 上 4 天（週期前，不計）+ 週期 0（10/5~10/31）上 16 天 → 不違規
+  let cells = blank(31), n = 0;
+  for (let d = 1; d <= 4; d++) cells.e1[d] = 'W';
+  for (let d = 5; d <= 31 && n < 16; d++) { if (isWed(2026, 10, d) || d % 5 === 0) continue; cells.e1[d] = 'W'; n++; }
+  let v = S.validate({ year: 2026, month: 10, roster, cells, perDay: 2 });
+  assert.ok(!v.issues.some(i => i.type === 'hours'), 'exactly 16 in cycle must pass: ' + JSON.stringify(v.issues.map(i => i.message)));
+  // 再加 1 天 → 17 → 違規
+  for (let d = 5; d <= 31; d++) if (cells.e1[d] === 'R' && !isWed(2026, 10, d)) { cells.e1[d] = 'W'; break; }
+  v = S.validate({ year: 2026, month: 10, roster, cells, perDay: 2 });
   const h = v.issues.filter(i => i.type === 'hours' && i.employee === 'e1');
-  assert.strictEqual(h.length, 1, 'hours issue expected: ' + JSON.stringify(v.issues.map(i => i.message)));
-  assert.ok(h[0].message.includes('170'), 'hours message ' + h[0].message);
-  // 跨月：9 月最後 14 天 e1 上 10 天，10 月前 14 天上 8 天 → 18 > 16
-  const sep = {}; for (const e of roster) { sep[e] = {}; for (let d = 1; d <= 30; d++) sep[e][d] = 'R'; }
-  let k = 0; for (let d = 17; d <= 30 && k < 10; d++) { if (isWed(2026, 9, d) || d % 5 === 0) continue; sep.e1[d] = 'W'; k++; }
-  const oct = {}; for (const e of roster) { oct[e] = {}; for (let d = 1; d <= 31; d++) oct[e][d] = 'R'; }
-  k = 0; for (let d = 1; d <= 14 && k < 8; d++) { if (isWed(2026, 10, d) || d % 5 === 0) continue; oct.e1[d] = 'W'; k++; }
-  const v2 = S.validate({ year: 2026, month: 10, roster, cells: oct, perDay: 2, prev: { year: 2026, month: 9, cells: sep } });
-  assert.ok(v2.issues.some(i => i.type === 'hours' && i.employee === 'e1'), 'cross-month hours detected');
-  console.log('hours OK');
+  assert.strictEqual(h.length, 1, 'cycle overflow expected');
+  assert.ok(h[0].message.includes('10/5～11/1') && h[0].message.includes('170'), 'cycle message ' + h[0].message);
+  // 跨月：10 月週期 0 上 16 天，11/1（仍屬週期 0）再上 1 天 → 11 月驗證回報
+  cells = blank(31); n = 0;
+  for (let d = 5; d <= 31 && n < 16; d++) { if (isWed(2026, 10, d) || d % 5 === 0) continue; cells.e1[d] = 'W'; n++; }
+  const nov = blank(30); nov.e1[1] = 'W';
+  const v2 = S.validate({ year: 2026, month: 11, roster, cells: nov, perDay: 2, prev: { year: 2026, month: 10, cells } });
+  assert.ok(v2.issues.some(i => i.type === 'hours' && i.employee === 'e1'), 'cross-month cycle detected');
+  // 11/2 屬週期 1，不受影響
+  const nov2 = blank(30); nov2.e1[2] = 'W';
+  const v3 = S.validate({ year: 2026, month: 11, roster, cells: nov2, perDay: 2, prev: { year: 2026, month: 10, cells } });
+  assert.ok(!v3.issues.some(i => i.type === 'hours'), 'new cycle starts 11/2');
+  // 生成器：10 月三人，週期 0 內每人 ≤ 16
+  const g = S.generate({ year: 2026, month: 10, roster: names(3), prefs: {}, balances: {}, perDay: 2, prev: null });
+  const vg = S.validate({ year: 2026, month: 10, roster: names(3), cells: g.cells, perDay: 2 });
+  assert.ok(!vg.issues.some(i => i.type === 'hours'), 'generator respects cycle cap');
+  for (const e of names(3)) { let c = 0; for (let d = 5; d <= 31; d++) if (g.cells[e][d] === 'W') c++; assert.ok(c <= 16, e + ' cycle count ' + c); }
+  console.log('cycle OK, october shortages', JSON.stringify(g.shortages));
 }
 
 // 4. 人手不足（2 人）→ 缺人必須優先落在週二、週四，且無硬性違規
 {
-  const opts = { year: 2026, month: 9, roster: names(2), prefs: {}, balances: {}, perDay: 2, prev: null };
+  const opts = { year: 2026, month: 10, roster: names(2), prefs: {}, balances: {}, perDay: 2, prev: null };
   const res = S.generate(opts);
   checkHard(res, opts, 'short-2');
   const days = Object.keys(res.shortages).map(Number);
   assert.ok(days.length > 0, 'expected shortages with 2 staff');
-  const onPref = days.filter(d => [2, 4].includes(S.weekday(2026, 9, d))).length;
+  const onPref = days.filter(d => [2, 4].includes(S.weekday(2026, 10, d))).length;
   console.log('short-2 shortage days =', days.length, 'on Tue/Thu =', onPref);
   assert.ok(onPref >= Math.ceil(days.length * 0.7), 'most shortages should be on Tue/Thu');
 }
@@ -114,7 +122,7 @@ let t0 = Date.now();
   console.log('prefs OK', Object.fromEntries(Object.entries(v.stats).map(([k, s]) => [k, `W${s.W} R${s.R} S${s.S} C${s.C}`])));
 }
 
-// 7. 多月連續（結餘收斂、160 小時跨月）
+// 7. 多月連續（結餘收斂、週期跨月）
 {
   const roster = names(5);
   let prev = null;
