@@ -1,6 +1,6 @@
 # 久吾動物醫院 自動排班表
 
-網址：**https://nastya-777.github.io/JIUWU/**
+網址：**https://nastya-777.github.io/Jiuwu/**
 
 電腦、手機瀏覽器皆可直接開啟。所有開啟此網頁的人看到並修改的都是同一份資料，變更會即時同步。
 
