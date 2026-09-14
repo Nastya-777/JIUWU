@@ -32,6 +32,10 @@ jobs:
         uses: actions/configure-pages@v5
         with:
           enablement: true
+      - name: Stamp asset versions (cache busting)
+        run: |
+          sed -i "s/?v=dev/?v=${GITHUB_SHA::8}/g" index.html
+          grep -n '?v=' index.html
       - name: Upload site
         uses: actions/upload-pages-artifact@v3
         with:
