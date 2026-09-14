@@ -7,7 +7,7 @@
  *
  * 對外介面（window.JiuwuStore）：
  *   init(cfg)                → Promise<{ mode, data|null }>   載入資料
- *   save(db)                 → 依變更的部分（settings / employees / months/<key>）寫入
+ *   save(db)                 → 依變更的部分（settings / employees / holidays / periods/<key>）寫入
  *   onRemoteChange(fn)       → 其他裝置修改時呼叫 fn(db)
  *   onStatus(fn)             → 連線狀態變化：fn({mode, connected, error})
  *   loadUi() / saveUi(ui)    → 介面狀態（永遠只存本機）
@@ -15,7 +15,7 @@
 (function (root) {
   'use strict';
 
-  var LOCAL_KEY = 'jiuwu_schedule_v1';
+  var LOCAL_KEY = 'jiuwu_schedule_v1';   // 舊資料會在載入時自動轉成 28 天週期
   var UI_KEY = 'jiuwu_schedule_ui_v1';
 
   var mode = 'local';
@@ -93,7 +93,7 @@
   }
   function normalize(d) {
     d = d && typeof d === 'object' ? d : {};
-    var out = { version: 2, employees: [], settings: { perDay: 2 }, months: {}, holidays: {} };
+    var out = { version: 3, employees: [], settings: { perDay: 2 }, periods: {}, holidays: {} };
     var emps = Array.isArray(d.employees) ? d.employees : Object.keys(objectify(d.employees)).map(function (k) { return d.employees[k]; });
     emps.forEach(function (e) {
       if (e && e.id && typeof e.name === 'string') {
@@ -103,9 +103,9 @@
     });
     var pd = parseInt(d.settings && d.settings.perDay, 10);
     out.settings.perDay = pd >= 1 && pd <= 20 ? pd : 2;
-    var months = objectify(d.months);
-    Object.keys(months).forEach(function (k) {
-      if (/^\d{4}-\d{2}$/.test(k)) out.months[k] = normMonth(months[k]);
+    var periods = objectify(d.periods);
+    Object.keys(periods).forEach(function (k) {
+      if (/^\d{4}-\d{2}-\d{2}$/.test(k)) out.periods[k] = normMonth(periods[k]);
     });
     var hol = objectify(d.holidays);
     Object.keys(hol).forEach(function (k) {
@@ -113,7 +113,89 @@
         out.holidays[k] = { name: String(hol[k].name || '').slice(0, 30), closed: !!hol[k].closed };
       }
     });
+    // 舊版（以月為單位）資料：轉成 28 天週期
+    var months = objectify(d.months);
+    if (Object.keys(months).length && !Object.keys(out.periods).length) migrateMonths(out, months);
     return out;
+  }
+
+  /* ---------- 舊版月份資料 → 28 天週期 ---------- */
+  function pad2(n) { return (n < 10 ? '0' : '') + n; }
+  function dayNumber(y, m, d) { return Math.floor(Date.UTC(y, m - 1, d) / 86400000); }
+  var PERIOD_DAYS = 28, PERIOD_EPOCH = dayNumber(2026, 9, 1);
+  function migrateMonths(out, months) {
+    var byDate = {};
+    Object.keys(months).forEach(function (k) {
+      if (!/^\d{4}-\d{2}$/.test(k)) return;
+      var m = normMonth(months[k]);
+      var y = +k.slice(0, 4), mo = +k.slice(5, 7);
+      var D = new Date(Date.UTC(y, mo, 0)).getUTCDate();
+      for (var d = 1; d <= D; d++) {
+        var iso = k + '-' + pad2(d);
+        var entry = { genW: m.working.phase === 'generated', genS: !!(m.saved && m.saved.phase === 'generated'),
+          cellsW: {}, cellsS: {}, prefsW: {}, prefsS: {}, rosterW: m.working.roster || [], rosterS: (m.saved && m.saved.roster) || [],
+          perDay: m.working.perDay, savedAt: m.savedAt || 0 };
+        Object.keys(m.working.cells || {}).forEach(function (e) { if (m.working.cells[e][d]) entry.cellsW[e] = m.working.cells[e][d]; });
+        Object.keys(m.working.prefs || {}).forEach(function (e) { if (m.working.prefs[e][d]) entry.prefsW[e] = m.working.prefs[e][d]; });
+        if (m.saved) {
+          Object.keys(m.saved.cells || {}).forEach(function (e) { if (m.saved.cells[e][d]) entry.cellsS[e] = m.saved.cells[e][d]; });
+          Object.keys(m.saved.prefs || {}).forEach(function (e) { if (m.saved.prefs[e][d]) entry.prefsS[e] = m.saved.prefs[e][d]; });
+        }
+        byDate[iso] = entry;
+      }
+    });
+    var idxSet = {};
+    Object.keys(byDate).forEach(function (iso) {
+      var p = iso.split('-');
+      var idx = Math.floor((dayNumber(+p[0], +p[1], +p[2]) - PERIOD_EPOCH) / PERIOD_DAYS);
+      if (idx >= 0) idxSet[idx] = true;
+    });
+    function build(idx, which) {
+      var gen = which === 'W' ? 'genW' : 'genS', cellsKey = which === 'W' ? 'cellsW' : 'cellsS', prefsKey = which === 'W' ? 'prefsW' : 'prefsS', rosterKey = which === 'W' ? 'rosterW' : 'rosterS';
+      var start = PERIOD_EPOCH + idx * PERIOD_DAYS;
+      var entries = [null], allGen = true, any = false, savedAt = 0, perDay = null, rosterSet = {};
+      for (var i = 1; i <= PERIOD_DAYS; i++) {
+        var t = new Date((start + i - 1) * 86400000);
+        var iso = t.getUTCFullYear() + '-' + pad2(t.getUTCMonth() + 1) + '-' + pad2(t.getUTCDate());
+        var en = byDate[iso] || null;
+        entries.push(en);
+        if (en) { any = true; if (!en[gen]) allGen = false; if (en.savedAt > savedAt) savedAt = en.savedAt; if (!perDay && en.perDay) perDay = en.perDay; en[rosterKey].forEach(function (e) { rosterSet[e] = true; }); }
+        else allGen = false;
+      }
+      if (!any) return null;
+      var st = freshDraft();
+      if (allGen) {
+        st.phase = 'generated'; st.cells = {}; st.roster = Object.keys(rosterSet); st.perDay = perDay;
+        st.roster.forEach(function (e) { st.cells[e] = {}; });
+        for (var j = 1; j <= PERIOD_DAYS; j++) {
+          st.roster.forEach(function (e) { var c = entries[j][cellsKey][e]; if (c) st.cells[e][j] = c; });
+        }
+      } else {
+        for (var q = 1; q <= PERIOD_DAYS; q++) {
+          var en2 = entries[q];
+          if (!en2) continue;
+          var src = en2[gen] ? en2[cellsKey] : en2[prefsKey];
+          Object.keys(src).forEach(function (e) {
+            var c = src[e];
+            if (c === 'R' || c === 'S' || c === 'C') { st.prefs[e] = st.prefs[e] || {}; st.prefs[e][q] = c; }
+          });
+        }
+      }
+      return { state: st, savedAt: savedAt, allGen: allGen };
+    }
+    Object.keys(idxSet).map(Number).sort(function (a, b) { return a - b; }).forEach(function (idx) {
+      var w = build(idx, 'W');
+      if (!w) return;
+      var sv = build(idx, 'S');
+      var t = new Date((PERIOD_EPOCH + idx * PERIOD_DAYS) * 86400000);
+      var key = t.getUTCFullYear() + '-' + pad2(t.getUTCMonth() + 1) + '-' + pad2(t.getUTCDate());
+      out.periods[key] = {
+        working: w.state,
+        saved: (sv && sv.allGen) ? sv.state : null,
+        savedAt: (sv && sv.allGen) ? (sv.savedAt || Date.now()) : null
+      };
+    });
+    out.migratedFromMonths = true;
   }
 
   /* ---------- 本機 ---------- */
@@ -153,7 +235,7 @@
   // 把資料拆成可個別寫入的部分
   function parts(db) {
     var out = { settings: db.settings, employees: db.employees, holidays: db.holidays || {} };
-    Object.keys(db.months || {}).forEach(function (k) { out['months/' + k] = db.months[k]; });
+    Object.keys(db.periods || {}).forEach(function (k) { out['periods/' + k] = db.periods[k]; });
     return out;
   }
   function queueChanged(db) {
@@ -189,7 +271,7 @@
 
   function applyRemote(pathStr, data, isPatch) {
     var segs = pathStr.split('/').filter(Boolean);
-    var db = current ? JSON.parse(JSON.stringify(current)) : { version: 2, employees: [], settings: { perDay: 2 }, months: {}, holidays: {} };
+    var db = current ? JSON.parse(JSON.stringify(current)) : { version: 3, employees: [], settings: { perDay: 2 }, periods: {}, holidays: {} };
     if (segs.length === 0) {
       var whole = normalize(isPatch ? Object.assign({}, db, data || {}) : (data || {}));
       db = whole;
@@ -212,6 +294,7 @@
       db = normalize(db);
     }
     // 是否真的與本機不同
+    delete db.migratedFromMonths;
     var before = current ? stableStringify(current) : '';
     var after = stableStringify(db);
     current = db;
@@ -250,6 +333,13 @@
         var db = normalize(data || {});
         current = db;
         var p = parts(db);
+        if (db.migratedFromMonths) {
+          // 舊資料剛轉成週期：把週期寫回資料庫，並移除舊的月份資料
+          delete db.migratedFromMonths;
+          Object.keys(p).forEach(function (k) { if (k.indexOf('periods/') === 0) pending[k] = p[k]; });
+          fbDelete('months').catch(function () { /* ignore */ });
+          scheduleFlush();
+        }
         Object.keys(p).forEach(function (k) { lastSynced[k] = stableStringify(p[k]); });
         localSave(db);
         setStatus({ connected: true, error: null });
@@ -267,6 +357,7 @@
     mode = 'local';
     setStatus({ mode: 'local', connected: true, error: null });
     var db = localLoad();
+    if (db && db.migratedFromMonths) { delete db.migratedFromMonths; localSave(db); }
     current = db;
     return Promise.resolve({ mode: mode, data: db });
   }

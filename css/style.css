@@ -319,6 +319,8 @@ table.grid thead th .dn { display: block; font-size: 13px; }
 table.grid thead th .dw { display: block; font-size: 11px; font-weight: 500; color: var(--ink-2); }
 table.grid thead th.stat { min-width: 44px; font-size: 12px; background: #F0F6FA; }
 table.grid thead th.holi { background: #FBF0EA; }
+table.grid th.mstart, table.grid td.mstart { border-left: 2px solid var(--sky-line); }
+table.grid thead th .dn { white-space: nowrap; }
 table.grid thead th.holi .dn { color: var(--holi); }
 table.grid thead th .hm { display: block; font-size: 9.5px; line-height: 1.2; color: #fff; background: var(--holi); border-radius: 4px; margin: 2px auto 0; padding: 1px 3px; width: max-content; }
 table.grid th.name, table.grid td.name {
@@ -376,7 +378,7 @@ table.grid .empty-row td { padding: 22px 16px; color: var(--ink-3); text-align: 
 
 /* ---------- 翻頁 ---------- */
 .pager { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 12px; }
-.pager span { font-weight: 600; color: var(--sky-ink); min-width: 110px; text-align: center; }
+.pager span { font-weight: 600; color: var(--sky-ink); min-width: 150px; text-align: center; font-variant-numeric: tabular-nums; }
 
 /* ---------- 圖例與提醒 ---------- */
 .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 12px; font-size: 13px; color: var(--ink-2); }

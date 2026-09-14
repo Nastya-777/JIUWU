@@ -25,10 +25,10 @@
         </div>
       </div>
       <div class="header-tools">
-        <label>排班月份
+        <label>排班週期
           <span class="picker">
             <select id="year-select" aria-label="選擇年份"></select>
-            <select id="month-select" aria-label="選擇月份"></select>
+            <select id="period-select" aria-label="選擇週期"></select>
           </span>
         </label>
         <label for="per-day">每日出勤
@@ -75,7 +75,7 @@
     <section class="card" aria-labelledby="sched-title">
       <div class="card-head">
         <div class="sched-title">
-          <h2 id="sched-title">2026 年 9 月</h2>
+          <h2 id="sched-title">2026/9/1～9/28</h2>
           <span class="meta" id="sched-meta"></span>
         </div>
         <span class="badge" id="status-badge"></span>
@@ -91,9 +91,9 @@
       </div>
 
       <div class="pager" id="pager">
-        <button type="button" class="btn btn-sm" data-nav="-1" id="pager-prev">‹ 上個月</button>
+        <button type="button" class="btn btn-sm" data-nav="-1" id="pager-prev">‹ 上一週期</button>
         <span id="pager-label"></span>
-        <button type="button" class="btn btn-sm" data-nav="1" id="pager-next">下個月 ›</button>
+        <button type="button" class="btn btn-sm" data-nav="1" id="pager-next">下一週期 ›</button>
       </div>
 
       <div class="legend" id="legend"></div>
