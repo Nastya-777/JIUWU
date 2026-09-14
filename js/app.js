@@ -558,7 +558,6 @@
           else if (dl <= -2) list.push({ cls: 'warn', text: t.names[e] + '：本月休息 ' + t.counts[e].R + ' 天，比平均少 ' + abs1(dl) + ' 天（下月會多排休）。' });
         });
       }
-      if (!list.some(function (i) { return i.cls; })) list.push({ cls: 'ok', text: '排班符合所有規則：每日 ' + t.perDay + ' 人出勤、無人連續上班超過 4 天、每個 28 天週期不超過 16 天、休息天數平均。' });
     }
     document.getElementById('issues').innerHTML = list.map(function (i) { return '<div class="issue ' + i.cls + '">' + esc(i.text) + '</div>'; }).join('');
     renderHeader();
