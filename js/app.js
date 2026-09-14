@@ -133,7 +133,7 @@
     if (!db.periods[key].working) db.periods[key].working = freshDraft();
     return db.periods[key];
   }
-  function periodTitle(idx) { return S.periodLabel(idx) + '（第 ' + (idx + 1) + ' 週期）'; }
+  function periodTitle(idx) { return S.periodLabel(idx); }
   function rosterFor(ms) {
     if (ms.phase === 'generated' && ms.roster) return ms.roster.slice();
     return activeEmployees().map(function (e) { return e.id; });
@@ -545,7 +545,7 @@
     var year = periodYear(idx);
     root.innerHTML =
       '<p class="x-title">久吾動物醫院 排班表　' + S.periodLabel(idx) + '</p>' +
-      '<p class="x-meta">第 ' + (idx + 1) + ' 週期 · ' + (PD - offCount) + ' 個營業日 · 每日 ' + t.perDay + ' 人出勤' + (m.savedAt ? ' · 儲存於 ' + new Date(m.savedAt).toLocaleString('zh-TW', { hour12: false }) : '') + '</p>' +
+      '<p class="x-meta">' + (PD - offCount) + ' 個營業日 · 每日 ' + t.perDay + ' 人出勤' + (m.savedAt ? ' · 儲存於 ' + new Date(m.savedAt).toLocaleString('zh-TW', { hour12: false }) : '') + '</p>' +
       '<table class="grid">' + t.html + '</table>' +
       '<div class="legend"><span><span class="sw sw-W"></span>班＝上班</span><span><span class="sw sw-R"></span>休＝休息</span><span><span class="sw sw-S"></span>特＝特休</span><span><span class="sw sw-C"></span>補＝補休</span><span><span class="sw sw-O"></span>加＝加班</span><span><span class="hm-legend">假</span>國定假日</span></div>' +
       '<div class="x-foot"><span>列印時間 ' + stamp + '</span><span>© ' + year + ' KE FEI. All rights reserved.</span></div>';
@@ -599,7 +599,7 @@
     var ms = getPeriod(idx).working;
     var perDay = ms.perDay || db.settings.perDay;
     var aoa = [];
-    aoa.push(['久吾動物醫院 排班表 ' + S.periodLabel(idx) + '（第 ' + (idx + 1) + ' 週期）']);
+    aoa.push(['久吾動物醫院 排班表 ' + S.periodLabel(idx)]);
     var head = ['員工'];
     for (var d = 1; d <= PD; d++) head.push(t.dates[d].m + '/' + t.dates[d].d + ' ' + WD[t.dates[d].wd] + (t.holidays[d] ? ' 假' : ''));
     head.push('上班', '休息', '特休', '補休', '加班', '剩餘特休', '剩餘補休');
@@ -626,7 +626,7 @@
     ws['!cols'] = [{ wch: 14 }].concat(new Array(PD).fill({ wch: 8 })).concat(new Array(7).fill({ wch: 8 }));
     ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 12 } }];
     var wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, '第' + (idx + 1) + '週期');
+    XLSX.utils.book_append_sheet(wb, ws, S.periodDates(idx)[1].iso + '～' + S.periodDates(idx)[PD].iso);
     var out = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
     var blob = new Blob([out], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     return saveFile(blob, fileBase(idx) + '.xlsx')
