@@ -594,39 +594,132 @@
     }).then(function (ok) { toast(ok ? 'PDF 已儲存' : '已取消'); })
       .catch(function () { toast('PDF 產生失敗'); });
   }
+  /* ---------- XLSX 匯出（每日一列，含樣式） ---------- */
+  var XFONT = 'Microsoft JhengHei';
+  var XBORDER = (function () { var b = { style: 'thin', color: { rgb: 'BFBFBF' } }; return { top: b, bottom: b, left: b, right: b }; })();
+  function xs(o) {
+    o = o || {};
+    var s = {
+      font: { name: XFONT, sz: o.sz || 10, bold: !!o.bold, color: { rgb: o.color || '000000' } },
+      alignment: { horizontal: o.align || 'center', vertical: 'center', wrapText: !!o.wrap }
+    };
+    if (o.fill) s.fill = { patternType: 'solid', fgColor: { rgb: o.fill } };
+    if (!o.noBorder) s.border = XBORDER;
+    return s;
+  }
+  var XCELL = {
+    W: { text: '上班', fill: 'E2EFDA' },
+    R: { text: '休假' },
+    S: { text: '特休', fill: 'E4DFEC' },
+    C: { text: '補休', fill: 'FFF2CC' },
+    O: { text: '加班', fill: 'BDD7EE' },
+    X: { text: '店休', fill: 'FCE4D6', color: 'C00000' },
+    '': { text: '' }
+  };
   function exportXLSX(idx) {
     var t = buildTable(idx, { forExport: true });
-    var ms = getPeriod(idx).working;
+    var m = getPeriod(idx), ms = m.working;
     var perDay = ms.perDay || db.settings.perDay;
-    var aoa = [];
-    aoa.push(['久吾動物醫院 排班表 ' + S.periodLabel(idx)]);
-    var head = ['員工'];
-    for (var d = 1; d <= PD; d++) head.push(t.dates[d].m + '/' + t.dates[d].d + ' ' + WD[t.dates[d].wd] + (t.holidays[d] ? ' 假' : ''));
-    head.push('上班', '休息', '特休', '補休', '加班', '剩餘特休', '剩餘補休');
-    aoa.push(head);
-    var cover = new Array(PD + 1).fill(0);
-    t.roster.forEach(function (e) {
-      var row = [t.names[e] || ''];
-      for (var dd = 1; dd <= PD; dd++) {
-        var code = isOffDay(idx, dd) ? 'R' : ((ms.cells[e] && ms.cells[e][dd]) || '');
-        if (S.isWork(code)) cover[dd]++;
-        row.push(SHORT[code]);
+    var roster = t.roster, names = t.names, dates = t.dates, hol = t.holidays;
+    var nCols = roster.length + 4;                 // 日期、星期、員工…、人數、說明
+    var maxC = Math.max(nCols, 9);                 // 總結表有 9 欄
+    var lastC = maxC - 1;
+    var head = { bold: true, color: 'FFFFFF', fill: '305496' };
+    var rows = [], merges = [];
+    function cell(v, o) { return { v: v, s: xs(o) }; }
+    function wide(r) { merges.push({ s: { r: r, c: 0 }, e: { r: r, c: lastC } }); }
+
+    var offCount = 0; for (var d0 = 1; d0 <= PD; d0++) if (isOffDay(idx, d0)) offCount++;
+    rows.push([cell('久吾動物醫院 排班表　' + S.periodLabel(idx), { bold: true, sz: 14, align: 'left', noBorder: true })]); wide(0);
+    rows.push([cell((PD - offCount) + ' 個營業日 · 每日 ' + perDay + ' 人出勤' + (m.savedAt ? ' · 儲存於 ' + new Date(m.savedAt).toLocaleString('zh-TW', { hour12: false }) : ''), { align: 'left', noBorder: true, color: '595959' })]); wide(1);
+    rows.push([]);
+
+    var hr = [cell('日期', head), cell('星期', head)];
+    roster.forEach(function (e) { hr.push(cell(names[e] || '（未知）', head)); });
+    hr.push(cell('當天上班人數', head), cell('說明/假別備註', head));
+    rows.push(hr);
+
+    for (var d = 1; d <= PD; d++) {
+      var dt = dates[d], off = isOffDay(idx, d), hd = hol[d];
+      var dsty = hd ? { fill: 'FFF2CC' } : {};
+      var row = [cell(dt.y + '/' + dt.m + '/' + dt.d, dsty), cell(WD[dt.wd], dsty)];
+      var notes = [], cover = 0;
+      if (hd && !off) notes.push('國定假日：' + hd.name);
+      roster.forEach(function (e) {
+        var code = off ? 'X' : ((ms.cells[e] && ms.cells[e][d]) || '');
+        var sty = XCELL[code] || XCELL[''];
+        row.push(cell(sty.text, { fill: sty.fill, color: sty.color }));
+        if (off) return;
+        var nm = names[e] || '', pre = ms.prefs && ms.prefs[e] && ms.prefs[e][d];
+        if (S.isWork(code)) cover++;
+        if (code === 'R') notes.push(nm + (pre === 'R' ? '指定休' : '休息日'));
+        else if (code === 'S') notes.push(nm + '特休');
+        else if (code === 'C') notes.push(nm + '補休');
+        else if (code === 'O') notes.push(nm + '加班');
+      });
+      if (off) {
+        row.push(cell('店休', { fill: 'FCE4D6', color: 'C00000' }));
+        row.push(cell(hd && hd.closed ? '休診（' + hd.name + '，全員休息）' : '店休（全員例假日）', { fill: 'FCE4D6', color: 'C00000', align: 'left', wrap: true }));
+      } else {
+        var short = Math.max(0, perDay - cover);
+        row.push(cell(cover + ' 人', short ? { fill: 'F4B6B6', color: 'C00000', bold: true } : {}));
+        if (short) notes.push('缺 ' + short + ' 人');
+        row.push(cell(notes.join('、'), { align: 'left', wrap: true, color: short ? 'C00000' : '000000' }));
       }
+      rows.push(row);
+    }
+
+    rows.push([]);
+    var sumTitle = rows.length;
+    rows.push([cell('【人員休假與補休總結】', { bold: true, sz: 12, align: 'left', noBorder: true })]); wide(sumTitle);
+    var sh = ['員工', '上班', '休息', '特休', '補休', '加班', '剩餘特休', '剩餘補休', '休假日期'].map(function (x) { return cell(x, head); });
+    rows.push(sh);
+    merges.push({ s: { r: rows.length - 1, c: 8 }, e: { r: rows.length - 1, c: Math.max(8, nCols - 1) } });
+    roster.forEach(function (e) {
       var c = t.counts[e], li = t.leave[e];
-      row.push(c.W, c.R, c.S, c.C, c.O, li.special ? li.special.remaining : '未設入職日', li.comp.remaining);
-      aoa.push(row);
+      var by = { R: [], S: [], C: [], O: [] };
+      for (var dd = 1; dd <= PD; dd++) {
+        if (isOffDay(idx, dd)) continue;
+        var code = (ms.cells[e] && ms.cells[e][dd]) || '';
+        if (by[code]) by[code].push(dates[dd].m + '/' + dates[dd].d);
+      }
+      var det = [];
+      if (by.R.length) det.push('休息：' + by.R.join('、'));
+      if (by.S.length) det.push('特休：' + by.S.join('、'));
+      if (by.C.length) det.push('補休：' + by.C.join('、'));
+      if (by.O.length) det.push('加班：' + by.O.join('、'));
+      var spNeg = li.special && li.special.remaining < 0, cpNeg = li.comp.remaining < 0;
+      rows.push([cell(names[e] || '（未知）', { bold: true }), cell(c.W), cell(c.R), cell(c.S), cell(c.C), cell(c.O),
+        cell(li.special ? li.special.remaining : '未設入職日', spNeg ? { color: 'C00000', bold: true } : {}),
+        cell(li.comp.remaining, cpNeg ? { color: 'C00000', bold: true } : {}),
+        cell(det.join('；'), { align: 'left', wrap: true })]);
+      merges.push({ s: { r: rows.length - 1, c: 8 }, e: { r: rows.length - 1, c: Math.max(8, nCols - 1) } });
     });
-    var foot = ['出勤人數'];
-    for (var d2 = 1; d2 <= PD; d2++) foot.push(isOffDay(idx, d2) ? '–' : cover[d2]);
-    aoa.push(foot);
-    aoa.push([]);
-    aoa.push(['說明：班＝上班、休＝休息、特＝特休、補＝補休、加＝加班；每日 ' + perDay + ' 人出勤；連續上班不超過 4 天；每個 28 天週期出勤不超過 16 天。']);
-    aoa.push(['© ' + periodYear(idx) + ' KE FEI. All rights reserved.']);
-    var ws = XLSX.utils.aoa_to_sheet(aoa);
-    ws['!cols'] = [{ wch: 14 }].concat(new Array(PD).fill({ wch: 8 })).concat(new Array(7).fill({ wch: 8 }));
-    ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 12 } }];
+    rows.push([]);
+    rows.push([cell('說明：每日 ' + perDay + ' 人出勤；連續上班不超過 4 天；每個 28 天週期出勤不超過 16 天；「指定休」為員工事先選擇的休息日。', { align: 'left', noBorder: true, color: '595959' })]); wide(rows.length - 1);
+    rows.push([cell('© ' + periodYear(idx) + ' KE FEI. All rights reserved.', { align: 'left', noBorder: true, color: '595959' })]); wide(rows.length - 1);
+
+    var ws = {};
+    rows.forEach(function (r, ri) {
+      r.forEach(function (c, ci) {
+        ws[XLSX.utils.encode_cell({ r: ri, c: ci })] = { v: c.v, t: typeof c.v === 'number' ? 'n' : 's', s: c.s };
+      });
+    });
+    ws['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: rows.length - 1, c: lastC } });
+    ws['!merges'] = merges;
+    var cols = [{ wch: 12 }, { wch: 6 }];
+    roster.forEach(function () { cols.push({ wch: 10 }); });
+    cols.push({ wch: 14 }, { wch: 46 });
+    while (cols.length < 8) cols.push({ wch: 10 });
+    if (cols.length < 9) cols.push({ wch: 40 });
+    ws['!cols'] = cols;
+    var rh = [{ hpt: 24 }, { hpt: 16 }, { hpt: 8 }, { hpt: 22 }];
+    for (var i = 0; i < PD; i++) rh.push({ hpt: 20 });
+    ws['!rows'] = rh;
+
     var wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, S.periodDates(idx)[1].iso + '～' + S.periodDates(idx)[PD].iso);
+    var sheetName = dates[1].m + '' + dates[1].d + '-' + dates[PD].m + '' + dates[PD].d;
+    XLSX.utils.book_append_sheet(wb, ws, sheetName);
     var out = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
     var blob = new Blob([out], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     return saveFile(blob, fileBase(idx) + '.xlsx')
